@@ -6,6 +6,21 @@
 
 ---
 
+## 📚 이론 학습 가이드 (기계공학과 학부 4학년 눈높이)
+
+이 프로젝트의 열전달·수치해석·Adjoint·역문제·통계 검증 배경을 직관적 비유와 실제 코드·그래프 1:1 해설로 정리한 7챕터 가이드입니다. (**[전체 학습 로드맵 및 체크리스트 열기 →](docs/study_guide/README.md)**)
+
+* **[Ch 1. 큰 그림 먼저 잡기](docs/study_guide/ch01.md)** — 3D 10존 ESC 열평형, 수동 보정의 한계, Phase 1 vs 2-A FAQ
+* **[Ch 2. 반도체 ESC와 희박 헬륨](docs/study_guide/ch02.md)** — Kennard–Yovanovich($d+M(P)$), 누설 시 승압 금지(척킹·아킹)
+* **[Ch 3. 속도 27배: ROM + 2D FVM](docs/study_guide/ch03.md)** — 선형 ESC 중첩(Mode A), $\text{Bi}_z \ll 1$, Schur 소거(대입법)
+* **[Ch 4. 기울기 514배: Adjoint 미분](docs/study_guide/ch04.md)** — 유한차분(24회) vs 수반법(1회), `float64` & Gradcheck(`1.02e-9`)
+* **[Ch 5. 역문제와 Pre-Refit 오진 차단](docs/study_guide/ch05.md)** — 정규화 오차($S_0, S_{\text{probe}}$), `test_15` 웨이퍼 휨 단독 차단
+* **[Ch 6. 안전 역설계 & 통계 보증](docs/study_guide/ch06.md)** — SLSQP, Operable Envelope($\beta \ge 0.68$), $A_{\text{pre}}/V$, Clopper–Pearson(`4.31%`)
+* **[Ch 7. PINN은 어디로 가는가?](docs/study_guide/ch07.md)** — `MLP` vs `Soft-PINN` vs `Hybrid Mode A/B` & Phase 2-A/2-B 로드맵
+* **[Appendix. 치트시트 & 면접 예상 질문 5선](docs/study_guide/appendix.md)** — 핵심 용어 2줄 사전 · SSOT 수치 암기표 · 면접 답변 틀
+
+---
+
 ## 1. 시스템 아키텍처 (End-to-End Pipeline)
 
 ```mermaid

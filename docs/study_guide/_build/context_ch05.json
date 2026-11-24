@@ -1,0 +1,56 @@
+{
+  "id": "ch05",
+  "title": "역문제(Inverse Problem)와 오진 차단: 왜 '한 번 더 재보기(Pre-Refit Gate)'가 필요한가?",
+  "locked_metrics": [
+    "65점 2D SensArray (sigma_T = 0.2°C) + 비선형/±20% 드리프트 유량 Model Mismatch",
+    "잠금 문턱 (8건 캘리브레이션): S_0_thresh = 107.154, S_probe_thresh = 170.972",
+    "test_15_ood_warpage: 단일점 S_0 = 77.3 (통과) -> 감압 Pre-Refit S_probe = 479.3 (단독 차단!)",
+    "Phase 1.5 배치: H_block 4/4 (100%), OOD 6/6 (100%) 차단"
+  ],
+  "required_intuitions": [
+    "S_0, S_probe = 센서 노이즈 크기로 나눈 잔차 제곱합(정규화 오차 점수)",
+    "안전한 하향 감압 탐색(P_out - 3 Torr)이 아킹 없이 Nullspace 오진을 잡는 원리"
+  ],
+  "figures": [],
+  "code_snippets": [
+    {
+      "symbol": "eval_he_flow_true_sccm",
+      "full_line_range": [
+        183,
+        191
+      ],
+      "snippet_line_range": [
+        183,
+        191
+      ],
+      "snippet": "def eval_he_flow_true_sccm(\n    beta_leak: float,\n    p_out_torr: float,\n    delta_cal: float,\n    flow_params: HeFlowModelParams = HeFlowModelParams(),\n) -> float:\n    \"\"\"Ground-truth nonlinear viscous He leak flow [sccm] (before measurement noise).\"\"\"\n    leak_term = flow_params.kappa_nl * (1.0 - beta_leak ** 2) * (p_out_torr ** 2) * (1.0 + delta_cal)\n    return float(flow_params.m_base_sccm + max(leak_term, 0.0))",
+      "path": "src/inverse/stage1_3d_diagnosis.py"
+    },
+    {
+      "symbol": "eval_he_flow_proxy_torch",
+      "full_line_range": [
+        194,
+        200
+      ],
+      "snippet_line_range": [
+        194,
+        200
+      ],
+      "snippet": "def eval_he_flow_proxy_torch(\n    beta_leak: torch.Tensor,\n    p_out_torr: torch.Tensor | float,\n    flow_params: HeFlowModelParams = HeFlowModelParams(),\n) -> torch.Tensor:\n    \"\"\"Stage 1 deliberately mismatched linear He leak flow proxy [sccm].\"\"\"\n    return flow_params.m_base_sccm + flow_params.kappa_lin * (1.0 - beta_leak) * p_out_torr",
+      "path": "src/inverse/stage1_3d_diagnosis.py"
+    },
+    {
+      "symbol": "run_stage1_diagnosis",
+      "full_line_range": [
+        242,
+        539
+      ],
+      "snippet_line_range": [
+        242,
+        256
+      ],
+      "snippet": "def run_stage1_diagnosis(\n    obs_0: EquipmentObservation,\n    probe_obs_fn: Callable[[float], EquipmentObservation],\n    solver: Coupled3DWaferFVMSolver,\n    sensor_xy: np.ndarray,\n    W_sensor: torch.Tensor,\n    opts: SolveOptions = SolveOptions(),\n    flow_params: HeFlowModelParams = HeFlowModelParams(),\n    sigma_T_C: float = 0.20,\n    sigma_model_T_C: float = 0.08,\n    S_0_thresh: float | None = None,\n    S_probe_thresh: float | None = None,\n    probe_dp_torr: float = 9.0,\n) -> Stage1Result:\n    \"\"\"Run Stage 1: H_block check -> 8-sector scan + Adjoint L-BFGS-B -> 2-point Pre-Refit Gate.\"\"\"",
+      "path": "src/inverse/stage1_3d_diagnosis.py"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "id": "ch06",
+  "title": "안전 제약 역설계(SLSQP)와 통계적 안전 보증(A_pre, V, Clopper-Pearson)",
+  "locked_metrics": [
+    "웨이퍼 4대 규격 (r <= 147 mm): |T_mean - 40°C| <= 0.5°C, dT <= 1.5°C, 3sigma <= 1.0°C, |grad T| <= 0.3 °C/mm",
+    "설비 제약: 세라믹 구배(r<=155) <= 1.5 °C/mm, Q_cool(r<=160) <= 1800 W, |dq''| <= 2.5 W/cm^2",
+    "Phase 1.5 독립 87건 배치: n_A = 68, V=1 0건 -> P(V=1|A_pre=1) = 0.00%, 95% Clopper-Pearson 상한 = 0.0431 (< 5%)",
+    "Operable Envelope (63pt): 22/63 operable, 최소 복구 beta_leak = 0.6819 (약 32% 압력 손실)"
+  ],
+  "required_intuitions": [
+    "시험 답안지 비유(A_pre 동결 vs 사후 FEM 채점 V 분리)",
+    "동전 던지기 비유(0/68 무위반 -> 1 - 0.05^(1/68) = 4.31%)"
+  ],
+  "figures": [
+    {
+      "path": "results/benchmarks/week2_3d_recovery_showcase.png",
+      "rel_from_study_guide": "../../results/benchmarks/week2_3d_recovery_showcase.png",
+      "must_verify_value": "3D FEM dT 3.64°C -> 1.14°C (-68.6%), 3sigma 2.64°C -> 0.73°C (-72.2%), Mean 38.95°C -> 40.05°C",
+      "exists": true
+    },
+    {
+      "path": "results/benchmarks/phase15_operable_envelope.png",
+      "rel_from_study_guide": "../../results/benchmarks/phase15_operable_envelope.png",
+      "must_verify_value": "Operable boundary beta_leak >= 0.6819 (0.70 discrete) for alpha_peak in [0.00, 0.30]",
+      "exists": true
+    }
+  ],
+  "code_snippets": [
+    {
+      "symbol": "RecoverySpec",
+      "full_line_range": [
+        50,
+        74
+      ],
+      "snippet_line_range": [
+        50,
+        64
+      ],
+      "snippet": "class RecoverySpec:\n    \"\"\"Product quality & equipment safety specifications for Stage 2.\"\"\"\n    T_target_C: float = 40.0\n    r_eff_m: float = 0.147\n\n    # Conservative FVM-to-3D-FEM-top margins (1.5x medium MAE=0.041C; ONLY for pre-approval, NEVER post-hoc V)\n    delta_T_C: float = 0.06\n    delta_grad_C_per_mm: float = 0.04\n\n    # Product quality limits on r <= 147 mm\n    limit_mean_err_C: float = 0.50\n    limit_dT_span_C: float = 1.50\n    limit_3sigma_C: float = 1.00\n    limit_wafer_grad_C_per_mm: float = 0.30\n",
+      "path": "src/inverse/stage2_3d_recovery.py"
+    },
+    {
+      "symbol": "eval_constraints_torch",
+      "full_line_range": [
+        142,
+        242
+      ],
+      "snippet_line_range": [
+        142,
+        156
+      ],
+      "snippet": "def eval_constraints_torch(\n    solver: Coupled3DWaferFVMSolver,\n    Q_heaters: torch.Tensor,\n    p_in: torch.Tensor,\n    p_out: torch.Tensor,\n    Q_plasma: torch.Tensor | float,\n    alpha_peak: torch.Tensor | float,\n    beta_leak: torch.Tensor | float,\n    theta_leak_deg: torch.Tensor | float,\n    spec: RecoverySpec,\n    heater_areas_cm2: torch.Tensor,\n    opts: SolveOptions = SolveOptions(),\n    smooth: bool = False,\n) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], dict[str, torch.Tensor]]:\n    \"\"\"Evaluate all 7 product + equipment constraints g_i(u, d) <= 0 and normalized g_i / s_i.\"\"\"",
+      "path": "src/inverse/stage2_3d_recovery.py"
+    },
+    {
+      "symbol": "run_stage2_recovery",
+      "full_line_range": [
+        245,
+        527
+      ],
+      "snippet_line_range": [
+        245,
+        259
+      ],
+      "snippet": "def run_stage2_recovery(\n    stage1: Stage1Result,\n    u_0: np.ndarray,\n    solver: Coupled3DWaferFVMSolver,\n    spec: RecoverySpec = RecoverySpec(),\n    geom: ESC3DGeometrySpec = ESC3DGeometrySpec(),\n    opts: SolveOptions = SolveOptions(),\n) -> Stage2Result:\n    \"\"\"Run Stage 2 10-zone safe inverse recovery and freeze A_pre & u*.\"\"\"\n    t0 = time.perf_counter()\n    u_0 = np.asarray(u_0, dtype=np.float64).copy()\n    p_out_0 = float(u_0[11])\n    p_out_hi = p_out_0 if stage1.leak_detected else spec.P_max_torr\n\n    # If H_block == 1 or Stage 1 failed, immediately freeze Hold (A_pre = 0)",
+      "path": "src/inverse/stage2_3d_recovery.py"
+    },
+    {
+      "symbol": "clopper_pearson_upper_95",
+      "full_line_range": [
+        92,
+        100
+      ],
+      "snippet_line_range": [
+        92,
+        100
+      ],
+      "snippet": "def clopper_pearson_upper_95(k: int, n: int) -> float | None:\n    \"\"\"One-sided 95% Clopper-Pearson upper confidence bound for binomial rate k/n.\"\"\"\n    if n <= 0:\n        return None\n    if k == 0:\n        return float(1.0 - 0.05 ** (1.0 / n))\n    if k >= n:\n        return 1.0\n    return float(beta_dist.ppf(0.95, k + 1, n - k))",
+      "path": "benchmarks/phase15_verification_suite.py"
+    },
+    {
+      "symbol": "run_experiment2_batch",
+      "full_line_range": [
+        240,
+        494
+      ],
+      "snippet_line_range": [
+        240,
+        254
+      ],
+      "snippet": "def run_experiment2_batch(\n    fem_solver: ESC3DFEMSolver,\n    fvm_solver: Coupled3DWaferFVMSolver,\n    sensor_xy: np.ndarray,\n    W_sensor: torch.Tensor,\n    spec: RecoverySpec,\n    geom: ESC3DGeometrySpec,\n    opts: SolveOptions,\n    flow_params: HeFlowModelParams,\n) -> dict:\n    print(\"\\n\" + \"=\" * 72)\n    print(\"EXPERIMENT 2: Large-Scale Independent Closed-Loop Batch Validation\")\n    print(f\"  LOCKED Thresholds: S_0_thresh={LOCKED_S_0_THRESH}, S_probe_thresh={LOCKED_S_PROBE_THRESH}\")\n    print(\"=\" * 72, flush=True)\n",
+      "path": "benchmarks/phase15_verification_suite.py"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+# Stage 0 SSOT Manifest — 3D ESC Study Guide Pipeline
+project_root: "pinn-recovery-surrogate-model"
+target_audience: "기계공학과 학부 4학년 (열전달·선형대수·수치해석·자동제어 기초)"
+target_chars_per_chapter: [3500, 4500]
+
+chapters:
+  - id: ch01
+    title: "큰 그림 먼저 잡기: 우리가 도대체 무엇을 만들었는가?"
+    code_sources:
+      - path: "src/fem3d/build_esc_3d_mesh.py"
+        focus_symbols: ["ESC3DGeometrySpec"]
+      - path: "benchmarks/day1_3d_fem_benchmark.py"
+        focus_symbols: ["main"]
+    figures:
+      - path: "results/benchmarks/day1_3d_wafer_demo.png"
+        must_verify_value: "Localized Edge Leak dT=5.47°C -> Manual Comp dT=6.58°C (worsened), Spike=+5.85°C"
+    locked_metrics:
+      - "300 mm 웨이퍼, 플라즈마 500 W, 칠러 20°C, 10존 방위각 히터"
+      - "225° 국소 에지 누설 스파이크: +5.85°C (medium 3D FEM)"
+      - "수동 방위각 섹터 보정 시 dT 악화: 5.47°C -> 6.58°C"
+    required_intuitions:
+      - "방바닥 보일러(10존 히터) + 천장 히터(플라즈마) + 지하실 에어컨(칠러) 열평형 비유"
+      - "Phase 1(순수 물리 기준선) vs Phase 2-A(Soft-PINN & Neural ESC) 선제 FAQ"
+
+  - id: ch02
+    title: "반도체 ESC 열전달 기초: 왜 일반 대류(h) 대신 '희박 헬륨'을 쓰는가?"
+    code_sources:
+      - path: "src/physics/materials_and_he.py"
+        focus_symbols: ["h_eff_interface"]
+      - path: "src/fem3d/esc_3d_fem_solver.py"
+        focus_symbols: ["quintic_smoothstep", "eval_he_pressure_3d"]
+    figures:
+      - path: "results/benchmarks/day1_3d_wafer_demo.png"
+        must_verify_value: "225° edge leak (12->3 Torr) produces +5.85°C local hotspot"
+    locked_metrics:
+      - "간극 d = 10 um, 고체 접촉 h_solid = 50 W/(m^2*K), k_He = 0.152 W/(m*K)"
+      - "Al2O3 k_cer = 30 W/(m*K), Si k_ref = 148 W/(m*K), eps_Si = 0.65"
+      - "에지 압력 범위 P in [3.0, 20.0] Torr, 누설 시 P_out <= P_out,0 승압 금지"
+    required_intuitions:
+      - "1D 직렬 열저항 회로와 평균자유행로 -> 겉보기 간극 d + M(P) 확장"
+      - "누설 시 He 승압 금지(척킹력 급감·웨이퍼 이탈·파셴 방전 아킹)"
+
+  - id: ch03
+    title: "속도 27배의 비밀: 선형 ESC ROM(중첩의 원리) + 2D 극좌표 FVM"
+    code_sources:
+      - path: "src/rom/esc_3d_unit_load.py"
+        focus_symbols: ["make_polar_fvm_grid", "extract_esc_3d_unit_load_rom"]
+      - path: "src/solvers/coupled_3d_wafer_fvm.py"
+        focus_symbols: ["Coupled3DWaferFVMSolver._wafer_conduction_and_rad", "Coupled3DWaferFVMSolver._solve_newton_with_jacobian"]
+    figures:
+      - path: "results/benchmarks/week2_3d_recovery_showcase.png"
+        must_verify_value: "Panel 2 Surrogate (Mean=39.98°C, dT=1.13°C) vs Panel 3 3D FEM (Mean=40.05°C, dT=1.14°C)"
+    locked_metrics:
+      - "medium 3D FEM: 20,956 DOFs, 119,765 요소, 워밍업 1,228.2 ms"
+      - "웨이퍼 두께 Biot 수: Bi_z ≈ 0.009 << 0.1 (상하면 온도차 0.057°C)"
+      - "Mode A ROM (M=82 + 10 heaters, 13.88 s 추출) + 2D Polar FVM (24x36 = 864 cells)"
+      - "3D FEM 대비 MAE: 0.041°C (정상) / 0.063°C (225° 누설), 에너지 보존 <= 9.09e-13 W"
+      - "Forward 단독 속도: 45.63 ms (26.9x 가속)"
+    required_intuitions:
+      - "선형 ESC 중첩의 원리(영향행렬) vs 비선형 웨이퍼 FVM 분리"
+      - "Schur 소거 = 중고등학교 연립방정식 대입법으로 T_ESC를 웨이퍼 식 안에 치환"
+
+  - id: ch04
+    title: "미분 가능 물리(Differentiable Physics)와 수반법(Adjoint): 기울기가 514배 빨라지는 원리"
+    code_sources:
+      - path: "src/solvers/coupled_3d_wafer_fvm.py"
+        focus_symbols: ["_WaferImplicitSolveFn.forward", "_WaferImplicitSolveFn.backward"]
+      - path: "benchmarks/step1_3d_hybrid_verify.py"
+        focus_symbols: ["verify_refinement"]
+    figures: []
+    locked_metrics:
+      - "12D 중앙유한차분(24 x 1.228 s = 29.48 s) vs Adjoint Forward+Backward 57.29 ms (514.5x 가속)"
+      - "Adjoint 구현 Gradcheck (vs FVM FD): 최대 상대오차 1.02e-9"
+      - "3D FEM FD 감도 대조: Q_1 0.46%, Q_7 0.77%, P_out 1.56%, beta_leak 8.19%"
+      - "torch.float64 강제 및 잔차 < 1e-11 수렴"
+    required_intuitions:
+      - "음함수 미분 F(T*, u)=0 -> 선형 방정식 1회로 변수 12개(또는 100개) 기울기 동시 산출"
+      - "Gradcheck가 최적화의 생명줄인 이유"
+
+  - id: ch05
+    title: "역문제(Inverse Problem)와 오진 차단: 왜 '한 번 더 재보기(Pre-Refit Gate)'가 필요한가?"
+    code_sources:
+      - path: "src/inverse/stage1_3d_diagnosis.py"
+        focus_symbols: ["eval_he_flow_true_sccm", "eval_he_flow_proxy_torch", "run_stage1_diagnosis"]
+    figures: []
+    locked_metrics:
+      - "65점 2D SensArray (sigma_T = 0.2°C) + 비선형/±20% 드리프트 유량 Model Mismatch"
+      - "잠금 문턱 (8건 캘리브레이션): S_0_thresh = 107.154, S_probe_thresh = 170.972"
+      - "test_15_ood_warpage: 단일점 S_0 = 77.3 (통과) -> 감압 Pre-Refit S_probe = 479.3 (단독 차단!)"
+      - "Phase 1.5 배치: H_block 4/4 (100%), OOD 6/6 (100%) 차단"
+    required_intuitions:
+      - "S_0, S_probe = 센서 노이즈 크기로 나눈 잔차 제곱합(정규화 오차 점수)"
+      - "안전한 하향 감압 탐색(P_out - 3 Torr)이 아킹 없이 Nullspace 오진을 잡는 원리"
+
+  - id: ch06
+    title: "안전 제약 역설계(SLSQP)와 통계적 안전 보증(A_pre, V, Clopper-Pearson)"
+    code_sources:
+      - path: "src/inverse/stage2_3d_recovery.py"
+        focus_symbols: ["RecoverySpec", "eval_constraints_torch", "run_stage2_recovery"]
+      - path: "benchmarks/phase15_verification_suite.py"
+        focus_symbols: ["clopper_pearson_upper_95", "run_experiment2_batch"]
+    figures:
+      - path: "results/benchmarks/week2_3d_recovery_showcase.png"
+        must_verify_value: "3D FEM dT 3.64°C -> 1.14°C (-68.6%), 3sigma 2.64°C -> 0.73°C (-72.2%), Mean 38.95°C -> 40.05°C"
+      - path: "results/benchmarks/phase15_operable_envelope.png"
+        must_verify_value: "Operable boundary beta_leak >= 0.6819 (0.70 discrete) for alpha_peak in [0.00, 0.30]"
+    locked_metrics:
+      - "웨이퍼 4대 규격 (r <= 147 mm): |T_mean - 40°C| <= 0.5°C, dT <= 1.5°C, 3sigma <= 1.0°C, |grad T| <= 0.3 °C/mm"
+      - "설비 제약: 세라믹 구배(r<=155) <= 1.5 °C/mm, Q_cool(r<=160) <= 1800 W, |dq''| <= 2.5 W/cm^2"
+      - "Phase 1.5 독립 87건 배치: n_A = 68, V=1 0건 -> P(V=1|A_pre=1) = 0.00%, 95% Clopper-Pearson 상한 = 0.0431 (< 5%)"
+      - "Operable Envelope (63pt): 22/63 operable, 최소 복구 beta_leak = 0.6819 (약 32% 압력 손실)"
+    required_intuitions:
+      - "시험 답안지 비유(A_pre 동결 vs 사후 FEM 채점 V 분리)"
+      - "동전 던지기 비유(0/68 무위반 -> 1 - 0.05^(1/68) = 4.31%)"
+
+  - id: ch07
+    title: "PINN은 어디로 가는가? (Phase 1 물리 기준선 vs Phase 2-A PINN 비교 가이드)"
+    code_sources:
+      - path: "src/solvers/coupled_3d_wafer_fvm.py"
+        focus_symbols: ["Coupled3DWaferFVMSolver.solve"]
+    figures: []
+    locked_metrics:
+      - "Phase 1/1.5 = Differentiable Physics / Hybrid ROM-FVM (Mode A, 신경망 없음)"
+      - "Phase 2-A 4종 비교: Data-only MLP vs Soft-PINN vs Linear ESC (POD+Ridge)+Diff-FVM vs Hybrid Mode B (Neural ESC+Diff-FVM)"
+      - "Phase 2-B: Al2O3 (30 W/mK) <-> AlN (160 W/mK) 소재 일반화"
+    required_intuitions:
+      - "기출 암기 학생(MLP) vs 숙제 병행 학생(Soft-PINN) vs 계산기+분업(Hybrid Mode A/B)"
+      - "언제 선형 ROM(Mode A)이 유리하고 언제 신경망 연산자(Mode B)가 필수적인가"

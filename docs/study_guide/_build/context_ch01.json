@@ -1,0 +1,49 @@
+{
+  "id": "ch01",
+  "title": "큰 그림 먼저 잡기: 우리가 도대체 무엇을 만들었는가?",
+  "locked_metrics": [
+    "300 mm 웨이퍼, 플라즈마 500 W, 칠러 20°C, 10존 방위각 히터",
+    "225° 국소 에지 누설 스파이크: +5.85°C (medium 3D FEM)",
+    "수동 방위각 섹터 보정 시 dT 악화: 5.47°C -> 6.58°C"
+  ],
+  "required_intuitions": [
+    "방바닥 보일러(10존 히터) + 천장 히터(플라즈마) + 지하실 에어컨(칠러) 열평형 비유",
+    "Phase 1(순수 물리 기준선) vs Phase 2-A(Soft-PINN & Neural ESC) 선제 FAQ"
+  ],
+  "figures": [
+    {
+      "path": "results/benchmarks/day1_3d_wafer_demo.png",
+      "rel_from_study_guide": "../../results/benchmarks/day1_3d_wafer_demo.png",
+      "must_verify_value": "Localized Edge Leak dT=5.47°C -> Manual Comp dT=6.58°C (worsened), Spike=+5.85°C",
+      "exists": true
+    }
+  ],
+  "code_snippets": [
+    {
+      "symbol": "ESC3DGeometrySpec",
+      "full_line_range": [
+        48,
+        86
+      ],
+      "snippet_line_range": [
+        48,
+        62
+      ],
+      "snippet": "class ESC3DGeometrySpec:\n    \"\"\"Geometric specification [meters] for 3D multi-zone ESC + 300 mm wafer.\"\"\"\n    r_z1: float = 0.055          # Inner center heater radius [m]\n    r_z2: float = 0.110          # Middle ring heater outer radius [m]\n    r_wafer: float = 0.150       # 300 mm wafer radius [m]\n    r_esc: float = 0.155         # ESC ceramic outer radius [m]\n    r_base: float = 0.160        # Al cooling base outer radius [m]\n\n    t_base: float = 0.0150       # Al base thickness [m]\n    t_cer_bot: float = 0.0009    # Ceramic below heater [m]\n    t_heater: float = 0.0002     # Embedded heater layer thickness [m]\n    t_cer_top: float = 0.0009    # Ceramic above heater [m] (total ceramic = 2.0 mm)\n    t_gap_mesh: float = 0.0002   # Virtual He gap mesh thickness [m]\n    t_wafer: float = 0.000775    # Silicon wafer thickness [m]\n",
+      "path": "src/fem3d/build_esc_3d_mesh.py"
+    },
+    {
+      "symbol": "main",
+      "full_line_range": [
+        31,
+        157
+      ],
+      "snippet_line_range": [
+        31,
+        45
+      ],
+      "snippet": "def main() -> None:\n    print(\"=\" * 84)\n    print(\" [3D Day 1 Benchmark] 3D Multi-Zone ESC (10 Heaters) FEniCSx Thermal Solver\")\n    print(\"=\" * 84)\n\n    summary = {}\n    demo_results = {}\n\n    for ref in (\"coarse\", \"medium\"):\n        solver = ESC3DFEMSolver(refinement=ref, degree=1)\n\n        # Case 1: Nominal balanced 10-zone recipe\n        cond_nom = ESC3DOperatingCondition(\n            ceramic_type=\"Al2O3\",\n            total_plasma_power_W=500.0,",
+      "path": "benchmarks/day1_3d_fem_benchmark.py"
+    }
+  ]
+}

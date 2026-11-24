@@ -1,0 +1,62 @@
+{
+  "id": "ch02",
+  "title": "반도체 ESC 열전달 기초: 왜 일반 대류(h) 대신 '희박 헬륨'을 쓰는가?",
+  "locked_metrics": [
+    "간극 d = 10 um, 고체 접촉 h_solid = 50 W/(m^2*K), k_He = 0.152 W/(m*K)",
+    "Al2O3 k_cer = 30 W/(m*K), Si k_ref = 148 W/(m*K), eps_Si = 0.65",
+    "에지 압력 범위 P in [3.0, 20.0] Torr, 누설 시 P_out <= P_out,0 승압 금지"
+  ],
+  "required_intuitions": [
+    "1D 직렬 열저항 회로와 평균자유행로 -> 겉보기 간극 d + M(P) 확장",
+    "누설 시 He 승압 금지(척킹력 급감·웨이퍼 이탈·파셴 방전 아킹)"
+  ],
+  "figures": [
+    {
+      "path": "results/benchmarks/day1_3d_wafer_demo.png",
+      "rel_from_study_guide": "../../results/benchmarks/day1_3d_wafer_demo.png",
+      "must_verify_value": "225° edge leak (12->3 Torr) produces +5.85°C local hotspot",
+      "exists": true
+    }
+  ],
+  "code_snippets": [
+    {
+      "symbol": "h_eff_interface",
+      "full_line_range": [
+        37,
+        54
+      ],
+      "snippet_line_range": [
+        37,
+        51
+      ],
+      "snippet": "def h_eff_interface(\n    P_torr: np.ndarray | float,\n    d_gap: float = 10e-6,\n    T_g: np.ndarray | float = 315.0,\n    h_solid: float = 50.0,\n    alpha_T1: float = 0.35,\n    alpha_T2: float = 0.35,\n) -> np.ndarray | float:\n    \"\"\"Kennard-Yovanovich rarefied He gap + mesa solid contact conductance [W/(m^2*K)].\"\"\"\n    P_arr = np.maximum(np.asarray(P_torr, dtype=float), 1e-12)\n    T_arr = np.asarray(T_g, dtype=float)\n    mfp = LAMBDA0_HE * (P0_HE_TORR / P_arr) * (T_arr / T0_HE)\n    tac_factor = (2.0 - alpha_T1) / alpha_T1 + (2.0 - alpha_T2) / alpha_T2\n    gas_factor = (2.0 * GAMMA_HE / (1.0 + GAMMA_HE)) / PR_HE\n    M = tac_factor * gas_factor * mfp",
+      "path": "src/physics/materials_and_he.py"
+    },
+    {
+      "symbol": "quintic_smoothstep",
+      "full_line_range": [
+        52,
+        55
+      ],
+      "snippet_line_range": [
+        52,
+        55
+      ],
+      "snippet": "def quintic_smoothstep(xi: np.ndarray) -> np.ndarray:\n    \"\"\"Compact-support C^2 quintic Hermite smoothstep on [0, 1].\"\"\"\n    t = np.clip(xi, 0.0, 1.0)\n    return t ** 3 * (10.0 + t * (-15.0 + 6.0 * t))",
+      "path": "src/fem3d/esc_3d_fem_solver.py"
+    },
+    {
+      "symbol": "eval_he_pressure_3d",
+      "full_line_range": [
+        100,
+        121
+      ],
+      "snippet_line_range": [
+        100,
+        114
+      ],
+      "snippet": "def eval_he_pressure_3d(x: np.ndarray, y: np.ndarray, cond: ESC3DOperatingCondition) -> np.ndarray:\n    \"\"\"Evaluate C^2 compact-support backside He pressure P(r, theta) [Torr].\"\"\"\n    r = np.hypot(x, y)\n    s_r = quintic_smoothstep((r - (cond.r_he_split_m - 0.5 * cond.w_smooth_m)) / cond.w_smooth_m)\n    p_base = (1.0 - s_r) * cond.p_he_in_torr + s_r * cond.p_he_out_torr\n\n    if cond.beta_leak >= 1.0 - 1e-12:\n        return p_base\n\n    l_r = quintic_smoothstep((r - cond.r_leak_m) / cond.w_smooth_m)\n    if cond.leak_theta_halfwidth_deg >= 180.0:\n        l_theta = np.ones_like(r)\n    else:\n        theta_deg = np.degrees(np.arctan2(y, x)) % 360.0\n        dtheta = np.abs(((theta_deg - cond.leak_theta_center_deg + 180.0) % 360.0) - 180.0)",
+      "path": "src/fem3d/esc_3d_fem_solver.py"
+    }
+  ]
+}

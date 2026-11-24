@@ -1,0 +1,56 @@
+{
+  "id": "ch04",
+  "title": "미분 가능 물리(Differentiable Physics)와 수반법(Adjoint): 기울기가 514배 빨라지는 원리",
+  "locked_metrics": [
+    "12D 중앙유한차분(24 x 1.228 s = 29.48 s) vs Adjoint Forward+Backward 57.29 ms (514.5x 가속)",
+    "Adjoint 구현 Gradcheck (vs FVM FD): 최대 상대오차 1.02e-9",
+    "3D FEM FD 감도 대조: Q_1 0.46%, Q_7 0.77%, P_out 1.56%, beta_leak 8.19%",
+    "torch.float64 강제 및 잔차 < 1e-11 수렴"
+  ],
+  "required_intuitions": [
+    "음함수 미분 F(T*, u)=0 -> 선형 방정식 1회로 변수 12개(또는 100개) 기울기 동시 산출",
+    "Gradcheck가 최적화의 생명줄인 이유"
+  ],
+  "figures": [],
+  "code_snippets": [
+    {
+      "symbol": "_WaferImplicitSolveFn.forward",
+      "full_line_range": [
+        166,
+        203
+      ],
+      "snippet_line_range": [
+        166,
+        180
+      ],
+      "snippet": "    def forward(\n        ctx: Any,\n        Q_heaters: torch.Tensor,\n        p_in: torch.Tensor,\n        p_out: torch.Tensor,\n        beta_leak: torch.Tensor,\n        Q_plasma: torch.Tensor,\n        alpha_peak: torch.Tensor,\n        theta_leak_deg: torch.Tensor,\n        solver: \"Coupled3DWaferFVMSolver\",\n        opts: SolveOptions,\n    ) -> torch.Tensor:\n        with torch.no_grad():\n            T_w_star, J_star = solver._solve_newton_with_jacobian(\n                Q_heaters=Q_heaters.detach(),",
+      "path": "src/solvers/coupled_3d_wafer_fvm.py"
+    },
+    {
+      "symbol": "_WaferImplicitSolveFn.backward",
+      "full_line_range": [
+        206,
+        264
+      ],
+      "snippet_line_range": [
+        206,
+        220
+      ],
+      "snippet": "    def backward(ctx: Any, grad_T_w: torch.Tensor):\n        (\n            T_w_star,\n            J_star,\n            Q_heaters,\n            p_in,\n            p_out,\n            beta_leak,\n            Q_plasma,\n            alpha_peak,\n            theta_leak_deg,\n        ) = ctx.saved_tensors\n        solver: Coupled3DWaferFVMSolver = ctx.solver\n        opts: SolveOptions = ctx.opts\n",
+      "path": "src/solvers/coupled_3d_wafer_fvm.py"
+    },
+    {
+      "symbol": "verify_refinement",
+      "full_line_range": [
+        83,
+        320
+      ],
+      "snippet_line_range": [
+        83,
+        97
+      ],
+      "snippet": "def verify_refinement(refinement: str) -> dict:\n    print(f\"\\n{'=' * 86}\")\n    print(f\" [Step 1-B] 3D Hybrid (Mode A + 2D Polar FVM) vs 3D FEniCSx FEM | mesh = {refinement}\")\n    print(f\"{'=' * 86}\")\n\n    fem_solver = ESC3DFEMSolver(refinement=refinement, degree=1)\n    fvm_solver = Coupled3DWaferFVMSolver(refinement=refinement, ceramic_type=\"Al2O3\", device=\"cpu\")\n    opts = SolveOptions()\n\n    xx_np = fvm_solver.xx_flat.cpu().numpy()\n    yy_np = fvm_solver.yy_flat.cpu().numpy()\n    areas_np = fvm_solver.cell_areas_flat.cpu().numpy()\n\n    Q_nom = (80.0, 200.0, 55.0, 55.0, 55.0, 55.0, 55.0, 55.0, 55.0, 55.0)\n",
+      "path": "benchmarks/step1_3d_hybrid_verify.py"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "id": "ch07",
+  "title": "PINN은 어디로 가는가? (Phase 1 물리 기준선 vs Phase 2-A PINN 비교 가이드)",
+  "locked_metrics": [
+    "Phase 1/1.5 = Differentiable Physics / Hybrid ROM-FVM (Mode A, 신경망 없음)",
+    "Phase 2-A 4종 비교: Data-only MLP vs Soft-PINN vs Linear ESC (POD+Ridge)+Diff-FVM vs Hybrid Mode B (Neural ESC+Diff-FVM)",
+    "Phase 2-B: Al2O3 (30 W/mK) <-> AlN (160 W/mK) 소재 일반화"
+  ],
+  "required_intuitions": [
+    "기출 암기 학생(MLP) vs 숙제 병행 학생(Soft-PINN) vs 계산기+분업(Hybrid Mode A/B)",
+    "언제 선형 ROM(Mode A)이 유리하고 언제 신경망 연산자(Mode B)가 필수적인가"
+  ],
+  "figures": [],
+  "code_snippets": [
+    {
+      "symbol": "Coupled3DWaferFVMSolver.solve",
+      "full_line_range": [
+        617,
+        711
+      ],
+      "snippet_line_range": [
+        617,
+        631
+      ],
+      "snippet": "    def solve(\n        self,\n        Q_heaters: torch.Tensor | np.ndarray | tuple[float, ...],\n        p_in: torch.Tensor | float = 12.0,\n        p_out: torch.Tensor | float = 12.0,\n        beta_leak: torch.Tensor | float = 1.0,\n        Q_plasma: torch.Tensor | float = 500.0,\n        alpha_peak: torch.Tensor | float = 0.25,\n        opts: SolveOptions = SolveOptions(),\n        theta_leak_deg: torch.Tensor | float | None = None,\n    ) -> dict[str, torch.Tensor]:\n        \"\"\"Solve coupled 3D ESC + 2D Polar Wafer FVM with exact end-to-end autograd.\"\"\"\n        Q_htr_t = _as_f64_tensor(Q_heaters, self.device)\n        p_in_t = _as_f64_tensor(p_in, self.device)\n        p_out_t = _as_f64_tensor(p_out, self.device)",
+      "path": "src/solvers/coupled_3d_wafer_fvm.py"
+    }
+  ]
+}

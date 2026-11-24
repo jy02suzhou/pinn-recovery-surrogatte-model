@@ -1,0 +1,68 @@
+{
+  "all_pass": true,
+  "chapters": [
+    {
+      "file": "ch01.md",
+      "chars": 4474,
+      "images": 1,
+      "cited_code_files": 1,
+      "latex": "$$=2, $=58",
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "ch02.md",
+      "chars": 4473,
+      "images": 1,
+      "cited_code_files": 2,
+      "latex": "$$=4, $=72",
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "ch03.md",
+      "chars": 4353,
+      "images": 1,
+      "cited_code_files": 2,
+      "latex": "$$=2, $=70",
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "ch04.md",
+      "chars": 4419,
+      "images": 0,
+      "cited_code_files": 2,
+      "latex": "$$=2, $=48",
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "ch05.md",
+      "chars": 4423,
+      "images": 0,
+      "cited_code_files": 1,
+      "latex": "$$=0, $=70",
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "ch06.md",
+      "chars": 4463,
+      "images": 2,
+      "cited_code_files": 2,
+      "latex": "$$=0, $=126",
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "ch07.md",
+      "chars": 4474,
+      "images": 0,
+      "cited_code_files": 1,
+      "latex": "$$=0, $=56",
+      "pass": true,
+      "issues": []
+    }
+  ]
+}

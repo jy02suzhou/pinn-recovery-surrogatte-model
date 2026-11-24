@@ -1,0 +1,77 @@
+{
+  "id": "ch03",
+  "title": "속도 27배의 비밀: 선형 ESC ROM(중첩의 원리) + 2D 극좌표 FVM",
+  "locked_metrics": [
+    "medium 3D FEM: 20,956 DOFs, 119,765 요소, 워밍업 1,228.2 ms",
+    "웨이퍼 두께 Biot 수: Bi_z ≈ 0.009 << 0.1 (상하면 온도차 0.057°C)",
+    "Mode A ROM (M=82 + 10 heaters, 13.88 s 추출) + 2D Polar FVM (24x36 = 864 cells)",
+    "3D FEM 대비 MAE: 0.041°C (정상) / 0.063°C (225° 누설), 에너지 보존 <= 9.09e-13 W",
+    "Forward 단독 속도: 45.63 ms (26.9x 가속)"
+  ],
+  "required_intuitions": [
+    "선형 ESC 중첩의 원리(영향행렬) vs 비선형 웨이퍼 FVM 분리",
+    "Schur 소거 = 중고등학교 연립방정식 대입법으로 T_ESC를 웨이퍼 식 안에 치환"
+  ],
+  "figures": [
+    {
+      "path": "results/benchmarks/week2_3d_recovery_showcase.png",
+      "rel_from_study_guide": "../../results/benchmarks/week2_3d_recovery_showcase.png",
+      "must_verify_value": "Panel 2 Surrogate (Mean=39.98°C, dT=1.13°C) vs Panel 3 3D FEM (Mean=40.05°C, dT=1.14°C)",
+      "exists": true
+    }
+  ],
+  "code_snippets": [
+    {
+      "symbol": "make_polar_fvm_grid",
+      "full_line_range": [
+        48,
+        91
+      ],
+      "snippet_line_range": [
+        48,
+        62
+      ],
+      "snippet": "def make_polar_fvm_grid(\n    n_r: int = 24,\n    n_theta: int = 36,\n    r_wafer: float = 0.150,\n) -> dict[str, np.ndarray]:\n    \"\"\"Build non-uniform radial (edge-clustered) x uniform angular 2D Polar FVM grid.\"\"\"\n    # Clustered radial faces: coarse [0, 105] mm, medium [105, 130] mm, fine [130, 150] mm\n    n1 = max(int(round(n_r * 0.35)), 4)\n    n2 = max(int(round(n_r * 0.25)), 4)\n    n3 = n_r - n1 - n2\n    r_faces = np.concatenate([\n        np.linspace(0.0, 0.105, n1, endpoint=False),\n        np.linspace(0.105, 0.132, n2, endpoint=False),\n        np.linspace(0.132, r_wafer, n3 + 1),\n    ])",
+      "path": "src/rom/esc_3d_unit_load.py"
+    },
+    {
+      "symbol": "extract_esc_3d_unit_load_rom",
+      "full_line_range": [
+        149,
+        401
+      ],
+      "snippet_line_range": [
+        149,
+        163
+      ],
+      "snippet": "def extract_esc_3d_unit_load_rom(\n    refinement: str = \"coarse\",\n    ceramic_type: str = \"Al2O3\",\n    n_r: int = 24,\n    n_theta: int = 36,\n    n_knots: int = 10,\n    k_max: int = 4,\n    h_chiller: float = 2000.0,\n    force_recompute: bool = False,\n) -> Path:\n    \"\"\"Extract and cache the 3D linear ESC unit-load ROM (Mode A) to .npz.\"\"\"\n    cache_dir = PROJECT_ROOT / \"results\" / \"rom\"\n    cache_dir.mkdir(parents=True, exist_ok=True)\n    cache_path = cache_dir / f\"esc3d_rom_{ceramic_type}_{refinement}_nr{n_r}_nt{n_theta}_nk{n_knots}_km{k_max}.npz\"\n    if cache_path.exists() and not force_recompute:",
+      "path": "src/rom/esc_3d_unit_load.py"
+    },
+    {
+      "symbol": "Coupled3DWaferFVMSolver._wafer_conduction_and_rad",
+      "full_line_range": [
+        367,
+        400
+      ],
+      "snippet_line_range": [
+        367,
+        381
+      ],
+      "snippet": "    def _wafer_conduction_and_rad(\n        self,\n        T_flat: torch.Tensor,\n        opts: SolveOptions,\n    ) -> torch.Tensor:\n        \"\"\"Compute net outward conduction + radiation power [W] for all N wafer cells.\"\"\"\n        T_2d = T_flat.reshape(self.n_r, self.n_theta)\n        k = self._k_si(T_2d, opts.nonlinear_k_si)\n\n        res = torch.zeros_like(T_2d)\n\n        # 1. Radial interior faces (distance-weighted harmonic mean)\n        k_l = k[:-1, :]\n        k_r = k[1:, :]\n        k_face_r = (k_l * k_r) / (self.w_r_right * k_l + self.w_r_left * k_r)",
+      "path": "src/solvers/coupled_3d_wafer_fvm.py"
+    },
+    {
+      "symbol": "Coupled3DWaferFVMSolver._solve_newton_with_jacobian",
+      "full_line_range": [
+        513,
+        615
+      ],
+      "snippet_line_range": [
+        513,
+        527
+      ],
+      "snippet": "    def _solve_newton_with_jacobian(\n        self,\n        Q_heaters: torch.Tensor,\n        p_in: torch.Tensor,\n        p_out: torch.Tensor,\n        beta_leak: torch.Tensor,\n        Q_plasma: torch.Tensor,\n        alpha_peak: torch.Tensor,\n        theta_leak_deg: torch.Tensor,\n        opts: SolveOptions,\n    ) -> tuple[torch.Tensor, torch.Tensor]:\n        \"\"\"Solve coupled nonlinear wafer FVM via Newton-Raphson + in-domain backtracking.\"\"\"\n        P_torr = eval_he_pressure_torch(\n            self.xx_flat,\n            self.yy_flat,",
+      "path": "src/solvers/coupled_3d_wafer_fvm.py"
+    }
+  ]
+}
