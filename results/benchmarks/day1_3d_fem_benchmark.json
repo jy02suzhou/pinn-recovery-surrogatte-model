@@ -1,0 +1,24 @@
+{
+  "coarse": {
+    "n_dofs": 7380,
+    "lin_solve_s": 1.263586164000003,
+    "nonlin_solve_s": 0.26968571399999774,
+    "nom_energy_imbalance_W": 6.821210263296962e-13,
+    "leak_energy_imbalance_W": -3.637978807091713e-12,
+    "nom_dT_eff_C": 4.687026106236658,
+    "leak_dT_eff_C": 4.731996934353617,
+    "comp_dT_eff_C": 6.546794363069182,
+    "local_hotspot_spike_C": 5.4322060202128455
+  },
+  "medium": {
+    "n_dofs": 20956,
+    "lin_solve_s": 0.5503199179999996,
+    "nonlin_solve_s": 1.68155655999999,
+    "nom_energy_imbalance_W": -4.547473508864641e-12,
+    "leak_energy_imbalance_W": -5.6843418860808015e-12,
+    "nom_dT_eff_C": 4.728257530352039,
+    "leak_dT_eff_C": 5.473190472129261,
+    "comp_dT_eff_C": 6.575165205753649,
+    "local_hotspot_spike_C": 5.848026574018661
+  }
+}

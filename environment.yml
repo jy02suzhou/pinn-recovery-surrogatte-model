@@ -1,0 +1,18 @@
+name: silicon-heat
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - fenics-dolfinx>=0.11
+  - mpich
+  - gmsh>=4.15
+  - python-gmsh
+  - numpy>=2.0
+  - scipy>=1.14
+  - matplotlib>=3.9
+  - pytest
+  - pip
+  - pip:
+      # For NVIDIA RTX 50-series (Blackwell) use CUDA 12.8 index:
+      # pip install torch --index-url https://download.pytorch.org/whl/cu128
+      - torch>=2.6
