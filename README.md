@@ -2,7 +2,7 @@
 
 **300 mm 플라즈마 식각 챔버의 3D 정전척(ESC) 열전달 대리 모델 · 오진 차단 진단(Pre-Refit Gate) · 10존 방위각 안전 역설계(Safe Inverse Recovery)**
 
-> **한 줄 요약:** 300 mm 10존 방위각 ESC(내부 2존 + 외곽 45° 8섹터)의 **3D FEniCSx 멀티도메인 열전달 해석기**를 기준으로, 선형 3D ESC 열응답(Mode A ROM)과 PyTorch `float64` **2D 극좌표 $(r, \theta)$ 미분 가능 웨이퍼 FVM 레이어**를 양방향 결합(Adjoint Implicit Differentiation)했습니다. 65점 2D SensArray 계측과 모델 불일치 He 유량 로그로부터 국소 열적 이상치를 진단하되, **2-운전점 차분 Pre-Refit 게이트**로 미모델링 OOD 오진을 차단하고, 현장 설비 인터락(누설 시 승압 금지, 히터 단방향성, 세라믹 열충격 보호, 칠러 제열 한계) 하에서 안전 보정 레시피를 도출해 **독립 3D FEniCSx FEM으로 사후 검증**하는 End-to-End 파이프라인입니다.
+> **한 줄 요약:** 300 mm 10존 방위각 ESC(내부 2존 + 외곽 45° 8섹터)의 **3D FEniCSx 멀티도메인 열전달 해석기**를 기준으로, 선형 3D ESC 열응답(Mode A ROM)과 PyTorch `float64` **2D 극좌표 $(r, \theta)$ 미분 가능 웨이퍼 FVM 레이어**를 양방향 결합(Adjoint Implicit Differentiation)한 **Differentiable Physics / Hybrid ROM–FVM** 파이프라인입니다. 무선 TC 웨이퍼(65점 2D SensArray) 기반 **오프라인 PM/챔버 매칭 및 OCAP 오토튜닝**을 타깃으로 하며, **2-운전점 차분 Pre-Refit 게이트**로 미모델링 OOD 오진을 차단하고 현장 인터락 하에서 안전 보정 레시피를 도출해 **독립 3D FEniCSx FEM으로 사후 검증**합니다. *(상세 보고서: [docs/DETAILED_RESULTS_REPORT.md](docs/DETAILED_RESULTS_REPORT.md) | `Soft-PINN` 및 `Neural ESC(Mode B)` 학습 비교는 Phase 2-A 예정)*
 
 ---
 
@@ -61,9 +61,17 @@ flowchart TD
 | **전역 에너지 보존 (2중 검산)** | 웨이퍼 **`1.14e-13 W`**, 독립 ESC→칠러 **`≤ 9.09e-13 W`** | 원통좌표 면적 가중 $L^2$ 투영 + Watt 정규화 |
 | **Adjoint 구현 Gradcheck (vs FVM FD)** | 6개 변수 전체 최대 상대오차 **`1.02e-9`** | `torch.float64` + 1-shot `linalg.solve` VJP |
 | **3D FEM 감도 검증 (vs 3D FEM FD)** | `Q_1`: **0.46%**, `Q_7`: **0.77%**, `P_out`: **1.56%**, `β_leak`: **8.19%** | 3D DG0 메시 2 mm 경사 이산화 차이 반영 |
-| **추론 속도 (배치 1, 워밍업 후)** | **42.58 ms** (p95 `45.43 ms`) vs 3D FEM `1,186.6 ms` | 단건 **27.9×** (12변수 기울기 기준 **~650× 가속**) |
+| **1-스텝 실측 속도 (배치 1, 워밍업 후)** | Forward **`45.63 ms`** / **Fwd+12D Bwd `57.29 ms`** | 워밍업 3D FEM `1,228.2 ms` 대비 **26.9×** (12D 중앙유한차분 **514.5×**) |
 
-### 3.2 Step 2 — 독립 숨겨둔 외란 3D FEM 폐루프 검증 (`A_pre` vs `V`)
+### 3.2 Phase 1.5 — 대규모 독립 87건 3D FEM 배치 검증 & Operable Envelope 2D 맵
+전용 캘리브레이션(8건)에서 잠근 문턱(`S_0 = 107.154`, `S_probe = 170.972`)을 고정한 채 **독립 87건 3D FEM 배치**([phase15_verification_suite.json](results/benchmarks/phase15_verification_suite.json))를 평가했습니다:
+* **조건부 오승인율 $\hat{P}(V=1 \mid A_{\text{pre}}=1)$:** **`0 / 68 = 0.00%`** (단측 95% Clopper–Pearson 신뢰상한 = **`0.0431` < 5% 달성!**)
+* **안전 게이트 차단율:** 활성 $H_{\text{block}}$ **`4/4 (100%)`**, 숨겨둔 OOD **`6/6 (100%)`**, 극심 누설(`β=0.15~0.38`) **`5/5 (100%)`**
+* **복구 가능 경계 (63pt Operable Envelope):** $\alpha_{\text{peak}} \in [0, 0.30]$ 구간에서 **$\beta_{\text{leak}} \ge 0.68$** (최대 ~32% 국소 에지 압력 강하)까지 승압 없이 안전 복구 가능
+
+![Operable Envelope 2D Phase Map](results/benchmarks/phase15_operable_envelope.png)
+
+### 3.3 Step 2 — 초기 15건 상세 감사표 (`A_pre` vs `V`) & 대표 복구 쇼케이스
 전용 캘리브레이션 세트(8건)에서 게이트 문턱(`S_0 = 107.15`, `S_probe = 170.97`)을 고정한 뒤, **완전 독립 테스트 세트 15건**에서 장비 정보만으로 `A_pre`와 `u*`를 동결하고 숨겨둔 실제 3D FEM 원규격(마진 미포함)으로 `V`를 사후 채점했습니다. ([week2_3d_closed_loop_eval.json](results/benchmarks/week2_3d_closed_loop_eval.json))
 
 * **조건부 오승인율 $\hat{P}(V=1 \mid A_{\text{pre}}=1)$:** **`0 / 7 = 0.00%`** (단측 95% Clopper–Pearson 신뢰상한 = **`0.3482`**)
